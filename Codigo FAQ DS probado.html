@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Creador de FAQ e Informes Interactivos</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        .accordion-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease, padding 0.3s ease; }
+        .accordion-item.active .accordion-content { max-height: 2000px; padding: 1.25rem; }
+        .accordion-item.active .icon-chevron { transform: rotate(180deg); }
+        .spinner {
+            border: 4px solid rgba(30, 41, 59, 0.1);
+            width: 50px; height: 50px; border-radius: 50%;
+            border-left-color: #1d4ed8; animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4 sm:p-6 antialiased">
+
+    <div class="w-full max-w-4xl bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-100 relative">
+        
+        <!-- VISTA 1: CONFIGURACIÓN -->
+        <div id="form-view" class="p-6 sm:p-10 block">
+            <div class="flex justify-between items-start border-b border-slate-100 pb-4 mb-6">
+                <div>
+                    <h1 class="text-2xl sm:text-3xl font-bold text-slate-800 tracking-tight">Generador de FAQ Académica</h1>
+                    <p class="text-sm text-slate-500 mt-1">Construya glosarios pegando texto o con Gemini 2.5 Flash</p>
+                </div>
+                <div class="text-4xl sm:text-5xl transform transition-transform hover:scale-110 cursor-default flex gap-1" title="Glosario / FAQ Interactivo">
+                    <span>📚</span><span>💬</span>
+                </div>
+            </div>
+
+            <div id="error-box" class="hidden mb-6 bg-red-50 border-l-4 border-red-600 p-4 rounded-md">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-red-600" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.78 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.22 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.22a.75.75 0 101.06-1.06L11.06 10l1.22-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.78 7.22z" clip-rule="evenodd" /></svg>
+                    </div>
+                    <div class="ml-3">
+                        <p id="error-message" class="text-sm text-red-700 font-medium"></p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="info-box" class="hidden mb-6 bg-blue-50 border-l-4 border-blue-500 p-4 rounded-md">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    </div>
+                    <div class="ml-3">
+                        <p id="info-message" class="text-sm text-blue-800 font-medium"></p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-8">
+                <!-- Opción A -->
+                <div class="bg-slate-50 p-5 rounded-xl border border-slate-200/80">
+                    <span class="block text-xs font-bold text-blue-600 uppercase tracking-wider mb-3">📄 Opción A: Procesamiento Local</span>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Pegue aquí su contenido (Preguntas y Respuestas)</label>
+                    <textarea id="raw-text" rows="10" class="w-full px-4 py-3 border border-slate-300 rounded-lg text-sm font-mono" placeholder='Ejemplo:
+1. ¿Qué es un paradigma?
+Es un modelo o patrón que sirve como referencia.
+
+2. ¿Qué es metodología?
+Conjunto de métodos que se aplican sistemáticamente.
+
+O también:
+¿Qué es una variable?
+Una característica que puede cambiar.
+
+¿Qué es una hipótesis?
+Es una suposición que se pone a prueba.'></textarea>
+                    <p class="text-xs text-slate-400 mt-2">✔️ Formatos aceptados: con números (1., 2.), con guiones, con signos de interrogación, o líneas sueltas.</p>
+                </div>
+
+                <!-- Opción B -->
+                <div class="space-y-4 border-t border-slate-100 pt-6">
+                    <span class="block text-xs font-bold text-purple-600 uppercase tracking-wider mb-2">🤖 Opción B: Generación con Gemini 2.5 Flash</span>
+                    
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">Google AI Studio API Key</label>
+                        <input type="password" id="api-key" class="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm" placeholder="Ingrese su API Key de Google AI Studio">
+                        <p class="text-xs text-slate-400 mt-1">🔐 Usando <strong class="font-mono text-purple-600">gemini-2.5-flash</strong></p>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">🔢 Cantidad de Preguntas a Generar</label>
+                        <input type="number" id="question-count" min="3" max="20" value="6" class="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm">
+                        <p class="text-xs text-slate-400 mt-1">Mínimo 3, máximo 20.</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">📌 Título</label>
+                            <input type="text" id="faq-title" class="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm" placeholder="Ej. Glosario de Metodología">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">👥 Público Objetivo</label>
+                            <input type="text" id="faq-target" class="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm" placeholder="Ej. Estudiantes">
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">📝 Temática Específica</label>
+                        <input type="text" id="faq-desc" class="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm" placeholder="Ej. Conceptos clave de entrevistas en profundidad">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">✍️ Autor</label>
+                        <input type="text" id="creator-name" class="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm" placeholder="Ej. Dr. Alexis Morffe">
+                    </div>
+                </div>
+
+                <button type="button" onclick="ejecutarProcesamiento()" class="w-full bg-gradient-to-r from-blue-700 to-purple-700 hover:from-blue-800 hover:to-purple-800 text-white font-medium py-3 px-4 rounded-lg shadow-lg transition-all flex items-center justify-center gap-2">
+                    <span>✨ Generar Estructura Interactiva</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- VISTA 2: CARGA -->
+        <div id="loading-view" class="hidden p-16 text-center flex-col items-center justify-center space-y-4">
+            <div class="spinner mx-auto"></div>
+            <h2 class="text-xl font-semibold text-slate-700 mt-4" id="load-title">Procesando...</h2>
+            <p class="text-sm text-slate-500" id="load-desc">Por favor espere un momento.</p>
+        </div>
+
+        <!-- VISTA 3: ACORDEÓN -->
+        <div id="accordion-view" class="hidden">
+            <div class="bg-gradient-to-r from-blue-800 to-purple-800 p-6 sm:p-8 text-white relative">
+                <div class="absolute top-4 right-4 text-3xl sm:text-4xl opacity-90 hover:scale-110 transition-transform cursor-default flex gap-1" title="Glosario / FAQ Interactivo">
+                    <span>📚</span><span>💬</span>
+                </div>
+                <h2 id="display-title" class="text-2xl sm:text-3xl font-bold pr-12"></h2>
+                <p id="display-subtitle" class="text-sm mt-2 opacity-90"></p>
+                <div class="flex flex-wrap justify-between items-center text-sm opacity-80 mt-6 border-t border-white/30 pt-4 gap-2">
+                    <span id="display-creator"></span>
+                    <span id="display-target" class="bg-white/20 px-3 py-1 rounded-full"></span>
+                </div>
+            </div>
+            <div id="accordion-container" class="p-6 sm:p-8 space-y-4 bg-slate-50 min-h-[200px]"></div>
+            <div class="p-6 bg-white border-t border-slate-100 flex justify-between">
+                <button onclick="volverAtras()" class="text-sm text-slate-500 hover:text-slate-800 transition flex items-center gap-1">← Volver al Editor</button>
+                <button onclick="descargarHTML()" class="bg-emerald-600 hover:bg-emerald-700 text-white py-2 px-4 rounded-lg text-sm shadow-sm transition flex items-center gap-2">📥 Descargar HTML</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        let faqGlobalData = [];
+        let configGlobal = {};
+
+        function mostrarError(mensaje) {
+            document.getElementById('error-message').innerText = mensaje;
+            document.getElementById('error-box').classList.remove('hidden');
+            document.getElementById('info-box').classList.add('hidden');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function mostrarInfo(mensaje) {
+            document.getElementById('info-message').innerText = mensaje;
+            document.getElementById('info-box').classList.remove('hidden');
+            document.getElementById('error-box').classList.add('hidden');
+            setTimeout(() => {
+                document.getElementById('info-box').classList.add('hidden');
+            }, 4000);
+        }
+
+        function ocultarMensajes() {
+            document.getElementById('error-box').classList.add('hidden');
+            document.getElementById('info-box').classList.add('hidden');
+        }
+
+        function cambiarVista(vistaId) {
+            const formView = document.getElementById('form-view');
+            const loadingView = document.getElementById('loading-view');
+            const accordionView = document.getElementById('accordion-view');
+            
+            formView.style.display = 'none';
+            loadingView.style.display = 'none';
+            accordionView.style.display = 'none';
+            
+            if (vistaId === 'loading-view') {
+                loadingView.style.display = 'flex';
+            } else if (vistaId === 'accordion-view') {
+                accordionView.style.display = 'block';
+            } else {
+                formView.style.display = 'block';
+            }
+        }
+
+        // ============================================================
+        // PARSER ULTRASENSIBLE - Detecta preguntas en CUALQUIER formato
+        // ============================================================
+        function esLineaDePregunta(linea) {
+            // Limpiar la línea para análisis
+            const limpia = linea.trim();
+            if (limpia.length === 0) return false;
+            
+            // 1. Contiene signos de interrogación
+            if (limpia.includes('?') || limpia.includes('¿')) return true;
+            
+            // 2. Comienza con número y punto o paréntesis (1., 2., 1), 2), etc.)
+            if (/^\d+[\.\)]\s/.test(limpia)) return true;
+            
+            // 3. Comienza con guión o asterisco
+            if (/^[\-\*]\s/.test(limpia)) return true;
+            
+            // 4. Comienza con palabra clave de pregunta (Qué, Cómo, Cuál, Por qué, Cuándo, Dónde, Quién, Cuánto)
+            const palabrasClave = /^(¿?)(Qué|Cómo|Cuál|Por qué|Porqué|Cuándo|Dónde|Quién|Cuánto|Para qué|Qué es|Qué son)/i;
+            if (palabrasClave.test(limpia)) return true;
+            
+            // 5. Termina con signo de interrogación (aunque no tenga ¿ al inicio)
+            if (limpia.endsWith('?')) return true;
+            
+            // 6. Es una línea corta (menos de 60 caracteres) y la anterior no era pregunta
+            if (limpia.length < 60 && limpia.length > 5) {
+                // Probablemente es una pregunta
+                return true;
+            }
+            
+            return false;
+        }
+
+        function parsearTexto(texto) {
+            // Dividir por líneas y preservar líneas vacías como separadores
+            const lineas = texto.split(/\r?\n/);
+            const lineasLimpias = [];
+            
+            // Identificar líneas no vacías pero mantener índice
+            for (let i = 0; i < lineas.length; i++) {
+                const linea = lineas[i].trim();
+                if (linea.length > 0) {
+                    lineasLimpias.push({ texto: linea, indice: i });
+                }
+            }
+            
+            if (lineasLimpias.length === 0) return [];
+            
+            const resultados = [];
+            let preguntaActual = '';
+            let respuestaActual = '';
+            let esperandoRespuesta = false;
+            
+            for (let i = 0; i < lineasLimpias.length; i++) {
+                const linea = lineasLimpias[i].texto;
+                const esPregunta = esLineaDePregunta(linea);
+                
+                if (esPregunta) {
+                    // Guardar par anterior si existe
+                    if (preguntaActual && respuestaActual) {
+                        resultados.push({
+                            pregunta: preguntaActual,
+                            respuesta: respuestaActual.trim()
+                        });
+                    } else if (preguntaActual && !respuestaActual) {
+                        resultados.push({
+                            pregunta: preguntaActual,
+                            respuesta: "[Respuesta no encontrada en el texto]"
+                        });
+                    }
+                    
+                    // Iniciar nueva pregunta (limpiar numeración inicial si existe)
+                    let preguntaLimpia = linea;
+                    // Eliminar numeración como "1.", "2)", "- ", "* " del inicio
+                    preguntaLimpia = preguntaLimpia.replace(/^\d+[\.\)]\s*/, '');
+                    preguntaLimpia = preguntaLimpia.replace(/^[\-\*]\s*/, '');
+                    preguntaActual = preguntaLimpia;
+                    respuestaActual = '';
+                    esperandoRespuesta = true;
+                } 
+                else if (esperandoRespuesta && preguntaActual) {
+                    // Acumular respuesta
+                    if (respuestaActual) {
+                        respuestaActual += '\n' + linea;
+                    } else {
+                        respuestaActual = linea;
+                    }
+                }
+                else {
+                    // Línea suelta - podría ser respuesta de la última pregunta
+                    if (preguntaActual) {
+                        if (respuestaActual) {
+                            respuestaActual += '\n' + linea;
+                        } else {
+                            respuestaActual = linea;
+                        }
+                        esperandoRespuesta = true;
+                    }
+                }
+            }
+            
+            // Guardar el último par
+            if (preguntaActual && respuestaActual) {
+                resultados.push({
+                    pregunta: preguntaActual,
+                    respuesta: respuestaActual.trim()
+                });
+            } else if (preguntaActual && !respuestaActual) {
+                resultados.push({
+                    pregunta: preguntaActual,
+                    respuesta: "[Respuesta no encontrada en el texto]"
+                });
+            }
+            
+            // Si no se detectaron preguntas, intentar método de pares de líneas
+            if (resultados.length === 0 && lineasLimpias.length >= 2) {
+                for (let i = 0; i < lineasLimpias.length; i += 2) {
+                    if (lineasLimpias[i] && lineasLimpias[i+1]) {
+                        resultados.push({
+                            pregunta: lineasLimpias[i].texto,
+                            respuesta: lineasLimpias[i+1].texto
+                        });
+                    }
+                }
+            }
+            
+            // Limpiar respuestas vacías o demasiado cortas
+            const filtrados = resultados.filter(item => 
+                item.pregunta && 
+                item.pregunta.length > 3 &&
+                item.respuesta && 
+                item.respuesta.length > 2 &&
+                !item.respuesta.includes("[Respuesta no encontrada]") // Solo eliminar si es literal
+            );
+            
+            // Mostrar estadísticas en consola para depuración
+            console.log(`📊 Parser: Detectadas ${resultados.length} preguntas, ${filtrados.length} válidas`);
+            if (filtrados.length > 0) {
+                console.log("📝 Preguntas detectadas:");
+                filtrados.forEach((item, idx) => {
+                    console.log(`  ${idx+1}. ${item.pregunta.substring(0, 80)}...`);
+                });
+            }
+            
+            return filtrados;
+        }
+
+        // Conexión con Gemini 2.5 Flash
+        async function generarConGemini25(apiKey, titulo, tematica, publico, cantidadPreguntas) {
+            cantidadPreguntas = Math.min(20, Math.max(3, cantidadPreguntas));
+            
+            const prompt = `Eres un académico experto. Genera EXACTAMENTE ${cantidadPreguntas} preguntas y respuestas.
+
+TÍTULO: "${titulo}"
+TEMÁTICA: "${tematica}"
+PÚBLICO: "${publico}"
+
+Formato JSON: [{"pregunta": "...?", "respuesta": "..."}]
+Solo JSON, sin markdown.`;
+
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+            
+            const payload = {
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: { temperature: 0.4, maxOutputTokens: 4000 }
+            };
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                const errData = await response.json();
+                const errorMsg = errData.error?.message || "";
+                if (response.status === 429) throw new Error("QUOTA_EXCEEDED");
+                if (errorMsg.includes("demand")) throw new Error("HIGH_DEMAND");
+                if (response.status === 401 || response.status === 403) throw new Error("API_KEY_INVALIDA");
+                throw new Error(errorMsg);
+            }
+
+            const data = await response.json();
+            let jsonText = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+            jsonText = jsonText.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+            
+            const matchArray = jsonText.match(/\[\s*\{[\s\S]*\}\s*\]/);
+            if (matchArray) jsonText = matchArray[0];
+            
+            let parsed;
+            try {
+                parsed = JSON.parse(jsonText);
+            } catch (e) {
+                const reparado = jsonText.replace(/(?<=: ")([^"\\]*(?:\\.[^"\\]*)*)(?=")/g, (match) => match.replace(/"/g, '\\"').replace(/\n/g, '\\n'));
+                parsed = JSON.parse(reparado);
+            }
+            
+            if (!Array.isArray(parsed)) throw new Error("Formato inválido");
+            return parsed.filter(item => item.pregunta && item.respuesta).slice(0, cantidadPreguntas);
+        }
+
+        async function ejecutarProcesamiento() {
+            ocultarMensajes();
+            
+            const textoCrudo = document.getElementById('raw-text').value.trim();
+            const apiKey = document.getElementById('api-key').value.trim();
+            
+            const creador = document.getElementById('creator-name').value.trim() || "Investigador Autónomo";
+            let titulo = document.getElementById('faq-title').value.trim();
+            let descripcion = document.getElementById('faq-desc').value.trim();
+            const publico = document.getElementById('faq-target').value.trim() || "Comunidad Académica";
+            
+            let cantidadPreguntas = parseInt(document.getElementById('question-count').value, 10);
+            if (isNaN(cantidadPreguntas)) cantidadPreguntas = 6;
+            cantidadPreguntas = Math.min(20, Math.max(3, cantidadPreguntas));
+            
+            if (!textoCrudo && apiKey) {
+                if (!titulo && !descripcion) {
+                    mostrarError("❌ Completa al menos el Título o la Descripción.");
+                    return;
+                }
+                if (!titulo) titulo = "Glosario Especializado";
+                if (!descripcion) descripcion = publico;
+            }
+            
+            if (!titulo) titulo = "Glosario Interactivo";
+            if (!descripcion) descripcion = "Definiciones fundamentales";
+
+            if (!textoCrudo && !apiKey) {
+                mostrarError("❌ Debes proporcionar contenido en Opción A o API Key en Opción B.");
+                return;
+            }
+
+            cambiarVista('loading-view');
+            document.getElementById('load-title').innerText = "Procesando...";
+
+            try {
+                if (textoCrudo) {
+                    document.getElementById('load-title').innerText = "📄 Analizando texto local...";
+                    await new Promise(r => setTimeout(r, 300));
+                    
+                    faqGlobalData = parsearTexto(textoCrudo);
+                    
+                    if (faqGlobalData.length === 0) {
+                        throw new Error("No se pudo extraer preguntas. Revisa el formato.");
+                    }
+                    
+                    mostrarInfo(`✅ ${faqGlobalData.length} elementos procesados.`);
+                    
+                } else if (apiKey) {
+                    document.getElementById('load-title').innerText = "🤖 Conectando con Gemini...";
+                    
+                    faqGlobalData = await generarConGemini25(apiKey, titulo, descripcion, publico, cantidadPreguntas);
+                    mostrarInfo(`✨ ${faqGlobalData.length} preguntas generadas.`);
+                }
+
+                if (!faqGlobalData || faqGlobalData.length === 0) {
+                    throw new Error("No se pudo generar contenido.");
+                }
+
+                configGlobal = { creador, titulo, desc: descripcion, publico };
+                dibujarAcordeon();
+
+            } catch (error) {
+                console.error("Error:", error);
+                cambiarVista('form-view');
+                mostrarError(`❌ ${error.message}`);
+            }
+        }
+
+        function dibujarAcordeon() {
+            document.getElementById('display-title').innerText = configGlobal.titulo;
+            document.getElementById('display-subtitle').innerText = configGlobal.desc;
+            document.getElementById('display-creator').innerHTML = `✍️ ${configGlobal.creador}`;
+            document.getElementById('display-target').innerHTML = `🎯 ${configGlobal.publico}`;
+
+            const contenedor = document.getElementById('accordion-container');
+            contenedor.innerHTML = '';
+
+            faqGlobalData.forEach((item) => {
+                const divItem = document.createElement('div');
+                divItem.className = "accordion-item bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden";
+                
+                const btn = document.createElement('button');
+                btn.className = "w-full text-left px-5 py-4 font-semibold text-slate-700 flex justify-between items-center bg-white hover:bg-slate-50";
+                btn.onclick = () => {
+                    const activo = divItem.classList.contains('active');
+                    document.querySelectorAll('.accordion-item').forEach(el => el.classList.remove('active'));
+                    if (!activo) divItem.classList.add('active');
+                };
+
+                const span = document.createElement('span');
+                span.innerText = item.pregunta;
+                span.className = "pr-4";
+                
+                const flecha = document.createElement('div');
+                flecha.innerHTML = '<svg class="icon-chevron w-5 h-5 text-slate-400 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>';
+
+                btn.appendChild(span);
+                btn.appendChild(flecha);
+
+                const divContenido = document.createElement('div');
+                divContenido.className = "accordion-content bg-slate-50 border-t border-slate-100";
+                const p = document.createElement('p');
+                p.className = "p-5 text-slate-600 whitespace-pre-line";
+                p.innerText = item.respuesta;
+                
+                divContenido.appendChild(p);
+                divItem.appendChild(btn);
+                divItem.appendChild(divContenido);
+                contenedor.appendChild(divItem);
+            });
+
+            cambiarVista('accordion-view');
+        }
+
+        function volverAtras() {
+            ocultarMensajes();
+            cambiarVista('form-view');
+        }
+
+        function descargarHTML() {
+            if (!faqGlobalData.length) {
+                mostrarError("No hay datos para exportar.");
+                return;
+            }
+            
+            const dataStr = JSON.stringify(faqGlobalData).replace(/</g, '\\u003c');
+            const htmlExport = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>${configGlobal.titulo}</title><script src="https://cdn.tailwindcss.com"><\/script><style>.ac{max-height:0;overflow:hidden;transition:max-height 0.3s;}.item.active .ac{max-height:800px;padding:1rem;}.item.active svg{transform:rotate(180deg);}<\/style></head><body class="p-5 bg-slate-100"><div class="max-w-3xl mx-auto bg-white rounded-xl shadow"><div class="bg-gradient-to-r from-blue-800 to-purple-800 p-6 text-white relative"><div class="absolute top-3 right-3 text-3xl flex gap-1"><span>📚</span><span>💬</span></div><h2 class="text-2xl font-bold pr-16">${configGlobal.titulo}</h2><p class="text-sm">${configGlobal.desc}</p><div class="mt-3 text-xs">✍️ ${configGlobal.creador} | 🎯 ${configGlobal.publico}</div></div><div id="c" class="p-6 space-y-3"></div></div><script>const d=${dataStr};const c=document.getElementById('c');d.forEach(i=>{const div=document.createElement('div');div.className="item bg-white border rounded-lg";const b=document.createElement('button');b.className="w-full text-left p-4 font-semibold flex justify-between hover:bg-slate-50";b.innerHTML='<span>'+i.pregunta+'<\/span><svg class="w-5 h-5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"><\/path><\/svg>';b.onclick=()=>{const a=div.classList.contains('active');document.querySelectorAll('.item').forEach(e=>e.classList.remove('active'));if(!a)div.classList.add('active');};const ac=document.createElement('div');ac.className="ac bg-slate-50 border-t";ac.innerHTML='<p class="p-4">'+i.respuesta+'<\/p>';div.appendChild(b);div.appendChild(ac);c.appendChild(div);});<\/script></body></html>`;
+            
+            const blob = new Blob([htmlExport], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Glosario_${configGlobal.titulo.replace(/\s+/g, '_')}.html`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
