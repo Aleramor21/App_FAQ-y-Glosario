@@ -346,7 +346,7 @@ Es una suposición que se pone a prueba.'></textarea>
         async function generarConGemini25(apiKey, titulo, tematica, publico, cantidadPreguntas) {
             cantidadPreguntas = Math.min(20, Math.max(3, cantidadPreguntas));
             
-            const prompt = `Eres un académico experto. Genera EXACTAMENTE ${cantidadPreguntas} preguntas y respuestas.
+            const prompt = `Eres un académico experto. Genera EXACTAMENTE ${cantidadPreguntas} preguntas y respuestas. Cada respuesta dada debe tener obligatoriamente una extensión mínima de 60 palabras. 
 
 TÍTULO: "${titulo}"
 TEMÁTICA: "${tematica}"
